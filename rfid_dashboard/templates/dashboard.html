@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RFID Access Control Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-granted { color: #28a745; font-weight: bold; }
+        .status-denied { color: #dc3545; font-weight: bold; }
+        .status-unknown { color: #6c757d; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-light">
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>RFID Access Control Dashboard</h2>
+        <div>
+            <label class="form-check-label me-2">Demo Mode</label>
+            <input type="checkbox" id="modeToggle" class="form-check-input" autocomplete="off">
+            <button class="btn btn-outline-secondary ms-3" id="refreshBtn">Refresh</button>
+        </div>
+    </div>
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="card-title">Firmware Version</h6>
+                    <div id="firmware" class="fs-5">--</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="card-title">Last Scanned UID</h6>
+                    <div id="uid" class="fs-5">--</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="card-title">Access Status</h6>
+                    <div id="access" class="fs-5 status-unknown">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">
+            Last 10 Scans
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-striped mb-0">
+                <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">UID</th>
+                    <th scope="col">Access</th>
+                </tr>
+                </thead>
+                <tbody id="logTable">
+                <!-- Log rows go here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let mode = '{{ mode }}';
+    const modeToggle = document.getElementById('modeToggle');
+    const refreshBtn = document.getElementById('refreshBtn');
+    let autoRefresh = true;
+
+    // Set toggle state on load
+    window.onload = function() {
+        modeToggle.checked = (mode === 'demo');
+        fetchData();
+    };
+
+    // Toggle mode
+    modeToggle.addEventListener('change', function() {
+        const newMode = this.checked ? 'demo' : 'live';
+        fetch('/api/mode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: newMode })
+        }).then(r => r.json()).then(data => {
+            mode = data.mode;
+            fetchData();
+        });
+    });
+
+    // Manual refresh
+    refreshBtn.addEventListener('click', function() {
+        fetchData();
+    });
+
+    // Fetch data from API and update UI
+    function fetchData() {
+        fetch('/api/data').then(r => r.json()).then(data => {
+            document.getElementById('firmware').textContent = data.firmware;
+            document.getElementById('uid').textContent = data.uid;
+            const accessDiv = document.getElementById('access');
+            accessDiv.textContent = data.access;
+            accessDiv.className = 'fs-5 ' + (data.access === 'Granted' ? 'status-granted' : (data.access === 'Denied' ? 'status-denied' : 'status-unknown'));
+            // Log
+            const logTable = document.getElementById('logTable');
+            logTable.innerHTML = '';
+            data.log.forEach((entry, idx) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${idx+1}</td><td>${entry.uid}</td><td class="${entry.access==='Granted'?'status-granted':'status-denied'}">${entry.access}</td>`;
+                logTable.appendChild(row);
+            });
+        });
+    }
+
+    // Auto-refresh every 2 seconds
+    setInterval(fetchData, 2000);
+</script>
+</body>
+</html> 
